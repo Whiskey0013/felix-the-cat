@@ -3,6 +3,10 @@ import sys
 import traceback
 
 from discord.ext import commands
+import discord
+
+print(discord.__file__)
+
 
 
 def get_prefix(bot, message):
@@ -50,26 +54,29 @@ async def help(ctx):
         moderator = "\n\u200b\n:closed_lock_with_key: Moderator Commands :closed_lock_with_key:\n" \
                     f"`{prefix}ban <user> <reason:optional>` - Bans the user for the specified reason. Default reason is used if none is provided.\n\u200b\n" \
                     f"`{prefix}kick <user> <reason:optional>` - Kicks the user for the specified reason. Default reason is used if none is provided.\n\u200b\n" \
-                    f"`{prefix}memberrole <role>` - Sets the role that users receive when they verify themselves." \
+                    f"`{prefix}memberrole <role>` - Sets the role that users receive when they verify themselves.\n\u200b\n" \
                     f"`{prefix}mute <user>` - Mutes the user for a specific reason. Reason is DMed to the user.\n\u200b\n" \
                     f"`{prefix}rankadd <role> <from level> <to level>` - Adds a rank to a user when a specific XP level is reached.\n\u200b\n" \
                     f"`{prefix}rankdelete <role>` - Removes a rank from the XP level list.\n\u200b\n" \
                     f"`{prefix}ranks` - Displays all XP level ranks.\n\u200b\n" \
                     f"`{prefix}removerolechannel` - Removes the role self-assignment channel functionality.\n\u200b\n" \
-                    f"`{prefix}removewelcomechannel` - Removes the channel where welcome banners are sent to.\n\u200b\n" \
-                    f"`{prefix}roleassign <role> <emoji> <group:optional>` - Add a role to the self-assignment roles. Use the group argument if you wish to make it a mutually exclusive role within its group.\n\u200b\n" \
+                    f"`{prefix}removewelcomechannel` - Removes the channel where welcome banners are sent.\n\u200b\n" \
+                    f"`{prefix}roleassign <role> <emoji> <group:optional>` - Adds role to the self-assignment roles.\n\u200b\n" \
                     f"`{prefix}roleremove <role>` - Removes a channel from the self-assignment function.\n\u200b\n" \
                     f"`{prefix}rolechannel <channel:optional>` - Sets the self-assignment role channel.\n\u200b\n" \
                     f"`{prefix}roles` - Displays all the available self-assignment roles.\n\u200b\n" \
                     f"`{prefix}setprefix <prefix:optional>` - Sets a new prefix for the bot. Sets as `!` if none is provided.\n\u200b\n" \
                     f"`{prefix}setwelcomechannel <channel:optional>` - Sets the welcome channel where welcome banners are sent to.\n\u200b\n" \
                     f"`{prefix}unmute <user>` - Unmutes a muted user.\n\u200b\n" \
-                    f"`{prefix}verification <message>` - Sets the message that users need to agree to to have access to the rest of the server.\n\u200b\n"
+                    f"`{prefix}verification <channel> <message_id>` - Sets the message that users agree to to get access to the rest of the server. " \
+                    f"Make sure you have developer mode enabled and right click the message you want users to react to and `Copy ID`.\n\u200b\n"
     if ctx.author.id in [600549104015114270, 170992935951794176]:
         owner = f"\n\u200b\n:bangbang: Owner Commands :bangbang:\n" \
                 f"`{prefix}adminrole <role>` - Sets the role that can use all moderator commands.\n\u200b\n" \
                 f"`{prefix}removeadminrole` - Removes the role that is able to use all moderator commands."
-    await ctx.author.send(f":scroll: __Help Menu__ :scroll:\n\u200b{general}{moderator}")
+    await ctx.author.send(f":scroll: __Help Menu__ :scroll:\n\u200b{general}")
+    if data["admin_role"] in [role.id for role in ctx.author.roles]:
+        await ctx.author.send(moderator)
     if ctx.author.id in [600549104015114270, 170992935951794176]:
         await ctx.author.send(owner)
     await ctx.send(":incoming_envelope:")
@@ -86,4 +93,4 @@ if __name__ == '__main__':
             traceback.print_exc()
 
 
-bot.run("TOKEN", reconnect=True, bot=True)
+bot.run("NjEwMjg0MjMwNzY0NjU4NzA4.XVDBow.lKZI1hH5vYdTAJhW6dcbYVyrkbU", reconnect=True, bot=True)

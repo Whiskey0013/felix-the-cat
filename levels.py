@@ -27,7 +27,7 @@ class Levels(commands.Cog):
             _data = json.load(fp)
         role = None
         for r in _data["ranks"].keys():
-            if _data["ranks"][r]["lower"] <= level <= _data["ranks"][r]["upper"]:
+            if _data["ranks"][r]["lower"] <= level:
                 role = discord.utils.get(ctx.guild.roles, id=int(r))
                 role = f"{role.mention}"
                 break
@@ -40,23 +40,48 @@ class Levels(commands.Cog):
 
     @commands.check(is_admin)
     @commands.command(aliases=["ra", "radd", "addrank"])
-    async def rankadd(self, ctx, role: discord.Role, start_level: int, end_level: int):
+    async def rankadd(self, ctx, role: discord.Role, start_level: int, end_level: int=None):
         start_level = abs(start_level)
-        end_level = abs(end_level)
+        if end_level:
+            try:
+                end_level = abs(end_level)
+            except TypeError:
+                pass
         with open("serverdata.json") as fp:
             data = json.load(fp)
-        if int(start_level) < int(end_level):
+        if not end_level:
+            enable = True
+            for rank in data["ranks"].keys():
+                if data["ranks"][rank]["upper"]:
+                    if data["ranks"][rank]["lower"] <= start_level <= data["ranks"][rank]["upper"]:
+                        enable = False
+                        coll_rank = discord.utils.get(ctx.guild.roles, id=int(rank))
+                        break
+            if enable:
+                data["ranks"][str(role.id)] = {"lower": int(start_level), "upper": None}
+                with open("serverdata.json", "w+") as fp:
+                    json.dump(data, fp, sort_keys=True, indent=4)
+                msg = f":white_check_mark: Successfully set {role.mention} as the rank for the following level: **{start_level}**."
+            else:
+                prefix = data["prefix"]
+                msg = f":x: Couldn't add this rank as the starting and ending levels overlap or clash with another rank's levels ({coll_rank.mention}).\n" \
+                      f"Please see `{prefix}ranks`."
+            await ctx.send(msg)
+        elif int(start_level) < int(end_level):
             enable = True
             coll_rank = None
             for rank in data["ranks"].keys():
-                if (data["ranks"][rank]["lower"] <= start_level <= data["ranks"][rank]["upper"]
-                ) or (data["ranks"][rank]["lower"] <= end_level <= data["ranks"][rank]["upper"]
-                ) or (start_level <= data["ranks"][rank]["lower"] <= end_level
-                ) or (start_level <= data["ranks"][rank]["upper"] <= end_level):
+                try:
+                    if (data["ranks"][rank]["lower"] <= start_level <= data["ranks"][rank]["upper"]
+                    ) or (data["ranks"][rank]["lower"] <= end_level <= data["ranks"][rank]["upper"]
+                    ) or (start_level <= data["ranks"][rank]["lower"] <= end_level
+                    ) or (start_level <= data["ranks"][rank]["upper"] <= end_level):
 
-                    enable = False
-                    coll_rank = discord.utils.get(ctx.guild.roles, id=int(rank))
-                    break
+                        enable = False
+                        coll_rank = discord.utils.get(ctx.guild.roles, id=int(rank))
+                        break
+                except TypeError:
+                    pass
             if enable:
                 data["ranks"][str(role.id)] = {"lower": int(start_level), "upper": int(end_level)}
                 with open("serverdata.json", "w+") as fp:
@@ -109,11 +134,18 @@ class Levels(commands.Cog):
                 role = discord.utils.get(ctx.guild.roles, id=int(r))
                 lower = data["ranks"][r]["lower"]
                 upper = data["ranks"][r]["upper"]
-                if lower == lower_list[count]:
-                    ranks += f"{role.mention} - Levels **{lower}** to **{upper}**\n"
-                    count += 1
-                    if count == len(lower_list):
-                        break
+                if not upper:
+                    if lower == lower_list[count]:
+                        ranks += f"{role.mention} - Level **{lower}**\n"
+                        count += 1
+                        if count == len(lower_list):
+                            break
+                else:
+                    if lower == lower_list[count]:
+                        ranks += f"{role.mention} - Levels **{lower}** to **{upper}**\n"
+                        count += 1
+                        if count == len(lower_list):
+                            break
         if len(ranks) == 0:
             prefix = data["prefix"]
             ranks = f"Sorry, you don't have any level ranks set.\nPlease see `{prefix}rankadd <role> <from level> <to level>`."

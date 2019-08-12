@@ -15,6 +15,42 @@ class Moderation(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+    @commands.command(aliases=["xpadd"])
+    async def addxp(self, ctx, user: discord.User, amount: int):
+        with open("userdata.json", "r") as fp:
+            data = json.load(fp)
+        try:
+            level = data[f"{user.id}"]
+        except IndexError:
+            data[f"{user.id}"] = {"level": 1, "xp": 0}
+        if data[f"{user.id}"]["level"] < 20:
+            try:
+                data[f"{user.id}"]["xp"] += amount
+                if data[f"{user.id}"]["xp"] >= int(data[f"{user.id}"]["level"]) * 100:
+                    with open("serverdata.json", "r") as fp:
+                        _data = json.load(fp)
+                    level = data[f"{user.id}"]["level"] + 1
+                    role = None
+                    for r in _data["ranks"].keys():
+                        if _data["ranks"][r]["lower"] <= level:
+                            role = discord.utils.get(ctx.guild.roles, id=int(r))
+                            await ctx.author.add_roles(role)
+                            role = f"Rank: {role.name}"
+                            break
+                    if not role:
+                        role = "You don't have a rank."
+                    data[f"{user.id}"]["xp"] -= int(data[f"{user.id}"]["level"]) * 100
+                    level = data[f"{user.id}"]["level"]
+                    await ctx.author.send(f"Ding! {user.mention}, you just advanced to **level {level+1}**! {role}")
+                    data[f"{user.id}"]["level"] += 1
+            except KeyError:
+                data[f"{user.id}"] = {"level": 1, "xp": 0}
+                data[f"{user.id}"]["xp"] += amount
+            with open("userdata.json", "w+") as fp:
+                json.dump(data, fp, sort_keys=True, indent=4)
+        xp = data[f"{user.id}"]["xp"]
+        await ctx.send(f":white_check_mark: You successfully added **{xp}** to **{user.name}**.")
+
     @commands.command(aliases=["modrole"])
     async def adminrole(self, ctx, role: discord.Role=None):
         with open("serverdata.json", "r") as fp:
@@ -33,19 +69,29 @@ class Moderation(commands.Cog):
 
     @commands.check(is_admin)
     @commands.command(aliases=["banuser", "banish"])
-    async def ban(self, ctx, user: discord.User, *, reason="Due to an extreme or repeat violation of our rules, you have been banned from the server."):
-        await user.send(reason)
-        await ctx.guild.ban(user, reason)
-        await ctx.send(f":boot: {user.name}#{user.discriminator} has been banned from the server by {ctx.author.name}#{ctx.author.discriminator}.\n\u200b\n"
-                       f"**Reason:** {reason}")
+    async def ban(self, ctx, user: discord.User, *, reason=None):
+        if not reason:
+            reason = "Due to an extreme or repeat violation of our rules, you have been banned from the server."
+        if user != ctx.author:
+            await user.send(reason)
+            await ctx.guild.ban(user, reason=reason)
+            await ctx.send(f":boot: {user.name}#{user.discriminator} has been banned from the server by {ctx.author.name}#{ctx.author.discriminator}.\n\u200b\n"
+                           f"**Reason:** {reason}")
+        else:
+            await ctx.send(":x: You cannot ban yourself.")
 
     @commands.check(is_admin)
     @commands.command(aliases=["kickuser"])
-    async def kick(self, ctx, user: discord.User, *, reason="Due to a violation of the server's rules, you have been kicked from the server."):
-        await user.send(reason)
-        await ctx.guild.kick(user, reason)
-        await ctx.send(f":boot: {user.name}#{user.discriminator} has been kicked from the server by {ctx.author.name}#{ctx.author.discriminator}.\n\u200b\n"
-                       f"**Reason:** {reason}")
+    async def kick(self, ctx, user: discord.User, *, reason: str=None):
+        if not reason:
+            reason = "Due to a violation of the server's rules, you have been kicked from the server."
+        if user != ctx.author:
+            await user.send(reason)
+            await ctx.guild.kick(user, reason=reason)
+            await ctx.send(f":boot: {user.name}#{user.discriminator} has been kicked from the server by {ctx.author.name}#{ctx.author.discriminator}.\n\u200b\n"
+                           f"**Reason:** {reason}")
+        else:
+            await ctx.send(":x: You cannot ban yourself.")
 
     @commands.check(is_admin)
     @commands.command(aliases=["setmemberrole"])
@@ -60,22 +106,25 @@ class Moderation(commands.Cog):
     @commands.check(is_admin)
     @commands.command(aliases=["muteuser", "silence"])
     async def mute(self, ctx, user: discord.Member, reason="Due to a minor violation of the server's rules, you have been muted."):
-        muted_role = discord.utils.get(ctx.guild.roles, name="Muted")
-        if muted_role not in user.roles:
-            for role in user.roles:
-                if role.name != "@everyone":
-                    await user.remove_roles(role)
-            if not muted_role:
-                muted_role = await ctx.guild.create_role(name="Muted", colour=discord.Colour.dark_grey())
-            await user.add_roles(muted_role)
-            overwrite = discord.PermissionOverwrite()
-            overwrite.send_messages = False
-            for channel in ctx.guild.text_channels:
-                await channel.set_permissions(muted_role, overwrite=overwrite)
-            await user.send(reason)
-            await ctx.send(f":white_check_mark: **{user.name}** successfully muted.")
+        if user != ctx.author:
+            muted_role = discord.utils.get(ctx.guild.roles, name="Muted")
+            if muted_role not in user.roles:
+                for role in user.roles:
+                    if role.name != "@everyone":
+                        await user.remove_roles(role)
+                if not muted_role:
+                    muted_role = await ctx.guild.create_role(name="Muted", colour=discord.Colour.dark_grey())
+                await user.add_roles(muted_role)
+                overwrite = discord.PermissionOverwrite()
+                overwrite.send_messages = False
+                for channel in ctx.guild.text_channels:
+                    await channel.set_permissions(muted_role, overwrite=overwrite)
+                await user.send(reason)
+                await ctx.send(f":white_check_mark: **{user.name}** successfully muted.")
+            else:
+                await ctx.send(f":x: **{user.name}** is already muted.")
         else:
-            await ctx.send(f":x: **{user.name}** is already muted.")
+            await ctx.send(":x: You cannot mute yourself.")
 
     @commands.command(aliases=["aremoverole", "removemodrole", "removearole"])
     async def removeadminrole(self, ctx):
@@ -115,7 +164,6 @@ class Moderation(commands.Cog):
     @commands.check(is_admin)
     @commands.command(aliases=["rassign", "roleadd", "addrole"])
     async def roleassign(self, ctx, role: discord.Role, emoji, group=None):
-        await ctx.send(f"```{emoji}```")
         custom = False
         if group:
             group = group.lower()
@@ -265,11 +313,13 @@ class Moderation(commands.Cog):
 
     @commands.check(is_admin)
     @commands.command(aliases=["entrymsg", "verification"])
-    async def verificationmsg(self, ctx, message: discord.Message):
-        await message.add_reaction("✅")
+    async def verificationmsg(self, ctx, channel: discord.TextChannel, message_id):
+        message_obj = await channel.fetch_message(int(message_id))
+        await message_obj.add_reaction("✅")
         with open("serverdata.json", "r") as fp:
             data = json.load(fp)
-        data["message"] = message.id
+        data["message"] = int(message_id)
+        data["v_channel"] = channel.id
         with open("serverdata.json", "w+") as fp:
             json.dump(data, fp, sort_keys=True, indent=4)
 

@@ -18,6 +18,10 @@ async def add_xp(message):
             data = {f"{message.author.id}": {}}
         data[f"{message.author.id}"]["level"] = 1
         data[f"{message.author.id}"]["xp"] = 0
+    try:
+        m = data[f"{message.author.id}"]
+    except KeyError:
+        data[f"{message.author.id}"] = {"level": 1, "xp": 0}
     if data[f"{message.author.id}"]["level"] < 20:
         try:
             data[f"{message.author.id}"]["xp"] += 10
@@ -27,10 +31,10 @@ async def add_xp(message):
                 level = data[f"{message.author.id}"]["level"] + 1
                 role = None
                 for r in _data["ranks"].keys():
-                    if _data["ranks"][r]["lower"] <= level <= _data["ranks"][r]["upper"]:
+                    if _data["ranks"][r]["lower"] <= level:
                         role = discord.utils.get(message.guild.roles, id=int(r))
                         await message.author.add_roles(role)
-                        role = f"Rank: {role.mention}"
+                        role = f"Rank: {role.name}"
                         break
                 if not role:
                     role = "You don't have a rank."
@@ -42,13 +46,11 @@ async def add_xp(message):
                                            #f":sparkles: Level progress: **{xp}/{(level+1)*100}**\n"
                                            #f":chart_with_upwards_trend: Rank: {role}")
                 data[f"{message.author.id}"]["level"] += 1
-        except:
+        except KeyError:
             data[f"{message.author.id}"] = {"level": 1, "xp": 0}
             data[f"{message.author.id}"]["xp"] += 10
         with open("userdata.json", "w+") as fp:
             json.dump(data, fp, sort_keys=True, indent=4)
-
-
 
 
 class Handler(commands.Cog):
@@ -59,7 +61,7 @@ class Handler(commands.Cog):
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
         if isinstance(error, discord.ext.commands.errors.CheckFailure):
-            content = ":no_entry_sign: You don't have permission to do that."
+            content = "You don't have permission to do that."
         else:
             content = error
         await ctx.send(f":x: {content}")
@@ -152,7 +154,7 @@ class Handler(commands.Cog):
         if message.guild and not message.author.bot and message.author.id not in recent_users and not message.content.startswith(data["prefix"]):
             await add_xp(message)
             recent_users.append(message.author.id)
-            await asyncio.sleep(random.randint(30, 60))
+            await asyncio.sleep(random.randint(40, 60))
             recent_users.remove(message.author.id)
 
     @commands.Cog.listener()
@@ -166,6 +168,7 @@ class Handler(commands.Cog):
                 role = discord.utils.get(guild.roles, id=data["member_role"])
                 channel = discord.utils.get(guild.text_channels, id=payload.channel_id)
                 message = await channel.fetch_message(data["message"])
+                print(".")
                 await user.add_roles(role)
                 await message.remove_reaction("✅", user)
         if payload.channel_id == data["role_channel"]:
