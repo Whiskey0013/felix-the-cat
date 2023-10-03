@@ -1,2 +1,2 @@
 git+https://github.com/Rapptz/discord.py
-pillow==6.1.0
+pillow==10.0.1
